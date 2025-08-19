@@ -32,7 +32,8 @@ int main(int argc, char *argv[])
     
     // Initialize APU logger using library function
     init_apu_logger();
-    if (get_apu_logger()) {
+    Apu_Logger* logger = get_apu_logger();
+    if (logger) {
         get_apu_logger()->set_enabled(true);
         get_apu_logger()->clear();
         printf("APU Logger initialized and enabled\n");
@@ -40,6 +41,7 @@ int main(int argc, char *argv[])
         printf("Logger enabled: %d\n", get_apu_logger()->is_enabled());
     } else {
         printf("Failed to initialize APU Logger\n");
+        exit(1);
     }
 
     /* Open music file in new emulator */
@@ -54,9 +56,7 @@ int main(int argc, char *argv[])
     printf("Started track %d\n", track);
 
     // Reset time base at start of track
-    if (g_apu_logger) {
-        g_apu_logger->set_time_base(gme_tell_samples(emu));
-    }
+    logger->set_time_base(gme_tell_samples(emu));
 
     /* Begin writing to wave file */
     wave_open( sample_rate, "out.wav" );
@@ -90,7 +90,6 @@ int main(int argc, char *argv[])
 
     // Save APU log
     size_t entry_count = 0;
-    Apu_Logger* logger = get_apu_logger();
     if (logger) {
         entry_count = logger->entry_count();
     }
