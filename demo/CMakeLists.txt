@@ -37,7 +37,12 @@ target_link_libraries(demo_multi gme::gme)
 # APU Logger Demo (optional, only built when GME_APU_LOGGER is enabled)
 if(GME_APU_LOGGER)
     add_executable(apu_logger_demo Wave_Writer.cpp apu_logger_demo.cpp ${CMAKE_SOURCE_DIR}/gme/Apu_Logger.cpp)
-    target_link_libraries(apu_logger_demo gme::gme)
+    # Use static library to avoid shared library symbol visibility issues
+    if(TARGET gme_static)
+        target_link_libraries(apu_logger_demo gme_static)
+    else()
+        target_link_libraries(apu_logger_demo gme::gme)
+    endif()
     target_compile_definitions(apu_logger_demo PRIVATE GME_APU_LOGGER)
     
     add_custom_command(TARGET apu_logger_demo
