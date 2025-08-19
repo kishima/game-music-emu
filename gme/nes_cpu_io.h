@@ -82,12 +82,20 @@ void Nsf_Emu::cpu_write( nes_addr_t addr, int data )
 		
 		#ifdef GME_APU_LOGGER
 		// Log APU register write with timing information
-		printf("APU Write: addr=0x%04X, data=0x%02X, time=%d\n", addr, data, cpu::time());
-		apu_log_write( cpu::time(), addr, data );
-		if (g_apu_logger) {
-			printf("Logger working, entry count: %zu\n", g_apu_logger->entry_count());
-		} else {
-			printf("g_apu_logger is NULL!\n");
+		printf("APU Write Debug: addr=0x%04X, data=0x%02X\n", addr, data);
+		if (!cpu_apu_logger) {
+			printf("Initializing APU logger...\n");
+			init_apu_logger();
+			cpu_apu_logger = get_apu_logger();
+			if (cpu_apu_logger) {
+				cpu_apu_logger->set_enabled(true);
+				printf("APU logger initialized: %p\n", cpu_apu_logger);
+			}
+		}
+		if(cpu_apu_logger){
+			cpu_apu_logger->log_write( cpu::time(), addr, data );
+		}else{
+			printf("apu_logger is null!\n");
 		}
 		#endif
 		

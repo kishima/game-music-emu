@@ -10,6 +10,18 @@
 // Global logger instance
 Apu_Logger* g_apu_logger = nullptr;
 
+void init_apu_logger()
+{
+    if(!g_apu_logger){
+        g_apu_logger = new Apu_Logger();
+    }
+}
+
+Apu_Logger* get_apu_logger()
+{
+    return g_apu_logger;
+}
+
 Apu_Logger::Apu_Logger() 
     : enabled_(false)
     , max_entries_(0)

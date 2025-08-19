@@ -124,6 +124,9 @@ extern "C" {
 }
 #endif
 
+void init_apu_logger();
+Apu_Logger* get_apu_logger();
+
 #endif // GME_APU_LOGGER
 
 #endif // APU_LOGGER_H

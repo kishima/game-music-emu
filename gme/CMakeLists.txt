@@ -41,9 +41,10 @@ set(libgme_SRCS Blip_Buffer.cpp
 
 # APU Logger (optional feature)
 if(GME_APU_LOGGER)
+    # Note: Apu_Logger.cpp is included directly in Nes_Cpu.cpp to solve shared library linking issues
     list(APPEND libgme_SRCS
-                Apu_Logger.cpp
                 Apu_Logger.h
+                Apu_Logger.cpp
         )
     message(STATUS "APU Logger support enabled")
     

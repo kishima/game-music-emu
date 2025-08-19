@@ -7,10 +7,7 @@
  */
 
 #include "gme/gme.h"
-
-#ifdef GME_APU_LOGGER
 #include "gme/Apu_Logger.h"
-#endif
 
 #include "Wave_Writer.h"
 #include <stdlib.h>
@@ -31,20 +28,19 @@ int main(int argc, char *argv[])
     int track = argc >= 3 ? atoi(argv[2]) : 0;
     int record_time_sec = argc >= 4 ? atoi(argv[3]) : 10; /* Record time in seconds */
 
-#ifdef GME_APU_LOGGER
     printf("APU Logger enabled - will record register writes\n");
     
-    // Initialize APU logger
-    apu_logger_init();
-    apu_logger_set_enabled(1);
-    apu_logger_clear();
-    
-    printf("APU Logger initialized and enabled\n");
-    printf("Global logger address: %p\n", g_apu_logger);
-    printf("Logger enabled: %d\n", apu_logger_is_enabled());
-#else
-    printf("APU Logger not compiled in (use -DGME_APU_LOGGER)\n");
-#endif
+    // Initialize APU logger using library function
+    init_apu_logger();
+    if (get_apu_logger()) {
+        get_apu_logger()->set_enabled(true);
+        get_apu_logger()->clear();
+        printf("APU Logger initialized and enabled\n");
+        printf("Global logger address: %p\n", get_apu_logger());
+        printf("Logger enabled: %d\n", get_apu_logger()->is_enabled());
+    } else {
+        printf("Failed to initialize APU Logger\n");
+    }
 
     /* Open music file in new emulator */
     Music_Emu* emu;
@@ -57,12 +53,10 @@ int main(int argc, char *argv[])
     handle_error( gme_start_track( emu, track ) );
     printf("Started track %d\n", track);
 
-#ifdef GME_APU_LOGGER
     // Reset time base at start of track
     if (g_apu_logger) {
         g_apu_logger->set_time_base(gme_tell_samples(emu));
     }
-#endif
 
     /* Begin writing to wave file */
     wave_open( sample_rate, "out.wav" );
@@ -94,12 +88,15 @@ int main(int argc, char *argv[])
     }
     printf("\n");
 
-#ifdef GME_APU_LOGGER
     // Save APU log
-    size_t entry_count = apu_logger_get_entry_count();
+    size_t entry_count = 0;
+    Apu_Logger* logger = get_apu_logger();
+    if (logger) {
+        entry_count = logger->entry_count();
+    }
     printf("APU Logger recorded %zu register writes\n", entry_count);
     
-    if (entry_count > 0) {
+    if (entry_count > 0 && logger) {
         char log_filename_bin[256];
         char log_filename_txt[256];
         
@@ -110,30 +107,26 @@ int main(int argc, char *argv[])
                  "apu_log_track%d.txt", track);
         
         // Save binary log
-        if (apu_logger_save_binary_c(log_filename_bin)) {
+        if (logger->save_binary(log_filename_bin)) {
             printf("Saved APU log to: %s\n", log_filename_bin);
         } else {
             printf("Failed to save binary APU log\n");
         }
         
         // Save text log (for debugging)
-        if (apu_logger_save_text_c(log_filename_txt)) {
+        if (logger->save_text(log_filename_txt)) {
             printf("Saved text APU log to: %s\n", log_filename_txt);
         } else {
             printf("Failed to save text APU log\n");
         }
         
         // Print statistics
-        if (g_apu_logger) {
-            printf("Memory usage: %zu bytes\n", g_apu_logger->get_memory_usage());
-            printf("Average writes per second: %.1f\n", 
-                   (double)entry_count / record_time_sec);
-        }
+        printf("Memory usage: %zu bytes\n", logger->get_memory_usage());
+        printf("Average writes per second: %.1f\n", 
+               (double)entry_count / record_time_sec);
     }
     
-    // Cleanup
-    apu_logger_cleanup();
-#endif
+    // Cleanup - no explicit cleanup needed, managed by library
 
     /* Cleanup */
     gme_delete( emu );
@@ -152,7 +145,6 @@ void handle_error( const char* str )
     }
 }
 
-#ifdef GME_APU_LOGGER
 /* Example of how to use the logged data for lightweight playback */
 void example_playback_from_log(const char* log_filename) {
     printf("\n=== Example: Playback from APU log ===\n");
@@ -183,4 +175,3 @@ void example_playback_from_log(const char* log_filename) {
     printf("2. Timed register write playback\n");
     printf("3. Audio sample generation\n");
 }
-#endif

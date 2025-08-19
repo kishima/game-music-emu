@@ -2,6 +2,11 @@
 
 #include "Nes_Cpu.h"
 
+#ifdef GME_APU_LOGGER
+#include "Apu_Logger.h"
+Apu_Logger* cpu_apu_logger = nullptr;
+#endif
+
 #include "blargg_endian.h"
 #include <limits.h>
 
