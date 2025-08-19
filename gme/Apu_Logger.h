@@ -108,6 +108,22 @@ struct apu_log_header_t {
     uint32_t reserved[4];   // For future use
 };
 
+// C interface functions (declared here for both C and C++ compilation)
+#ifdef __cplusplus
+extern "C" {
+#endif
+    void apu_logger_init();
+    void apu_logger_cleanup();
+    void apu_logger_set_enabled(int enabled);
+    int apu_logger_is_enabled();
+    void apu_logger_log_write_c(int32_t time, unsigned addr, int data);
+    int apu_logger_save_binary_c(const char* filename);
+    int apu_logger_save_text_c(const char* filename);
+    size_t apu_logger_get_entry_count();
+#ifdef __cplusplus
+}
+#endif
+
 #endif // GME_APU_LOGGER
 
 #endif // APU_LOGGER_H

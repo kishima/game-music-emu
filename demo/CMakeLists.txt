@@ -34,6 +34,21 @@ target_link_libraries(demo_mem gme::gme)
 add_executable(demo_multi Wave_Writer.cpp basics_multi.c)
 target_link_libraries(demo_multi gme::gme)
 
+# APU Logger Demo (optional, only built when GME_APU_LOGGER is enabled)
+if(GME_APU_LOGGER)
+    add_executable(apu_logger_demo Wave_Writer.cpp apu_logger_demo.cpp ${CMAKE_SOURCE_DIR}/gme/Apu_Logger.cpp)
+    target_link_libraries(apu_logger_demo gme::gme)
+    target_compile_definitions(apu_logger_demo PRIVATE GME_APU_LOGGER)
+    
+    add_custom_command(TARGET apu_logger_demo
+        POST_BUILD
+        COMMAND cmake -E copy "${CMAKE_SOURCE_DIR}/test.nsf" ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "Add convenience copy of test.nsf file for APU logger demo"
+        VERBATIM)
+        
+    message(STATUS "APU Logger demo will be built")
+endif()
+
 #
 # Testing
 #

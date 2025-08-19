@@ -17,7 +17,9 @@
 #include <stdio.h>
 #include <string.h>
 
-void handle_error( const char* str );
+extern "C" {
+    void handle_error( const char* str );
+}
 
 int main(int argc, char *argv[])
 {
@@ -38,6 +40,8 @@ int main(int argc, char *argv[])
     apu_logger_clear();
     
     printf("APU Logger initialized and enabled\n");
+    printf("Global logger address: %p\n", g_apu_logger);
+    printf("Logger enabled: %d\n", apu_logger_is_enabled());
 #else
     printf("APU Logger not compiled in (use -DGME_APU_LOGGER)\n");
 #endif

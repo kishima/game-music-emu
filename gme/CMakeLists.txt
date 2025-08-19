@@ -46,6 +46,9 @@ if(GME_APU_LOGGER)
                 Apu_Logger.h
         )
     message(STATUS "APU Logger support enabled")
+    
+    # Add compile definition to the library targets
+    set(APU_LOGGER_DEFINE GME_APU_LOGGER)
 endif()
 
 # Ay_Apu is very popular around here
@@ -346,6 +349,11 @@ macro(set_gme_props gme_target)
         target_compile_definitions(${gme_target} PRIVATE BLARGG_BIG_ENDIAN=1)
     else()
         target_compile_definitions(${gme_target} PRIVATE BLARGG_LITTLE_ENDIAN=1)
+    endif()
+    
+    # Add APU Logger definition if enabled
+    if(GME_APU_LOGGER)
+        target_compile_definitions(${gme_target} PRIVATE GME_APU_LOGGER)
     endif()
 
     # Try to protect against undefined behavior from signed integer overflow

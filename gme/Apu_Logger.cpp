@@ -160,6 +160,7 @@ extern "C" {
     void apu_logger_init() {
         if (!g_apu_logger) {
             g_apu_logger = new Apu_Logger();
+            g_apu_logger->set_enabled(true);
         }
     }
     
