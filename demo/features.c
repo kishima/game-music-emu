@@ -2,7 +2,8 @@
 prints its info and voice names, customizes the sound, and fades a track out.
 Records to "out.wav". */
 
-static char filename [] = "test.nsf"; /* opens this file (can be any music type) */
+//static char filename [] = "test.nsf"; /* opens this file (can be any music type) */
+static char filename [] = "/home/kishima/dev/esp32_nes_apu_mruby/temp/dq.nsf"; /* opens this file (can be any music type) */
 static char playlist [] = "test.m3u"; /* uses this playlist, if present*/
 
 #include "gme/gme.h"

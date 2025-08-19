@@ -39,6 +39,15 @@ set(libgme_SRCS Blip_Buffer.cpp
                 blargg_source.h
                 )
 
+# APU Logger (optional feature)
+if(GME_APU_LOGGER)
+    list(APPEND libgme_SRCS
+                Apu_Logger.cpp
+                Apu_Logger.h
+        )
+    message(STATUS "APU Logger support enabled")
+endif()
+
 # Ay_Apu is very popular around here
 if(USE_GME_AY OR USE_GME_KSS)
     list(APPEND libgme_SRCS

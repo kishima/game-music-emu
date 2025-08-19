@@ -7,6 +7,10 @@
 	#include "Nes_Mmc5_Apu.h"
 #endif
 
+#ifdef GME_APU_LOGGER
+	#include "Apu_Logger.h"
+#endif
+
 #include "blargg_source.h"
 
 int Nsf_Emu::cpu_read( nes_addr_t addr )
@@ -75,6 +79,12 @@ void Nsf_Emu::cpu_write( nes_addr_t addr, int data )
 	if ( unsigned (addr - Nes_Apu::start_addr) <= Nes_Apu::end_addr - Nes_Apu::start_addr )
 	{
 		GME_APU_HOOK( this, addr - Nes_Apu::start_addr, data );
+		
+		#ifdef GME_APU_LOGGER
+		// Log APU register write with timing information
+		apu_log_write( cpu::time(), addr, data );
+		#endif
+		
 		apu.write_register( cpu::time(), addr, data );
 		return;
 	}

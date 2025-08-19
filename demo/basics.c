@@ -10,7 +10,7 @@ void handle_error( const char* str );
 
 int main(int argc, char *argv[])
 {
-	const char *filename = "test.nsf"; /* Default file to open */
+	const char *filename = "/home/kishima/dev/esp32_nes_apu_mruby/temp/dq.nsf"; /* Default file to open */
 	if ( argc >= 2 )
 		filename = argv[1];
 
