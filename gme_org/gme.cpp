@@ -75,9 +75,20 @@ const char* gme_identify_header( void const* header )
 {
 	switch ( get_be32( header ) )
 	{
+		case BLARGG_4CHAR('Z','X','A','Y'):  return "AY";
+		case BLARGG_4CHAR('G','B','S',0x01): return "GBS";
+		case BLARGG_4CHAR('G','Y','M','X'):  return "GYM";
+		case BLARGG_4CHAR('H','E','S','M'):  return "HES";
+		case BLARGG_4CHAR('K','S','C','C'):
+		case BLARGG_4CHAR('K','S','S','X'):  return "KSS";
 		case BLARGG_4CHAR('N','E','S','M'):  return "NSF";
 		case BLARGG_4CHAR('N','S','F','E'):  return "NSFE";
+		case BLARGG_4CHAR('S','A','P',0x0D): return "SAP";
+		case BLARGG_4CHAR('S','N','E','S'):  return "SPC";
+		case BLARGG_4CHAR('V','g','m',' '):  return "VGM";
 	}
+	if (get_be16(header) == BLARGG_2CHAR(0x1F, 0x8B))
+		return "VGZ";
 	return "";
 }
 
