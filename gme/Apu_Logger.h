@@ -6,10 +6,6 @@
 
 #include "blargg_common.h"
 
-// Enable APU logging functionality
-// Define GME_APU_LOGGER during compilation to enable logging
-#ifdef GME_APU_LOGGER
-
 #include <vector>
 #include <stdio.h>
 
@@ -126,7 +122,5 @@ extern "C" {
 
 void init_apu_logger();
 Apu_Logger* get_apu_logger();
-
-#endif // GME_APU_LOGGER
 
 #endif // APU_LOGGER_H

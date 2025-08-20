@@ -2,8 +2,6 @@
 
 #include "Apu_Logger.h"
 
-#ifdef GME_APU_LOGGER
-
 #include <string.h>
 #include <algorithm>
 
@@ -208,5 +206,3 @@ extern "C" {
         return g_apu_logger ? g_apu_logger->entry_count() : 0;
     }
 }
-
-#endif // GME_APU_LOGGER

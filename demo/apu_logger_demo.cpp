@@ -28,7 +28,6 @@ void show_usage(const char* program_name) {
 }
 
 bool parse_apu_log(const char* bin_filename) {
-    #ifdef GME_APU_LOGGER
     printf("Parsing APU log file: %s\n", bin_filename);
     
     Apu_Logger logger;
@@ -91,10 +90,6 @@ bool parse_apu_log(const char* bin_filename) {
     }
     
     return true;
-    #else
-    printf("Error: APU Logger not compiled in (use -DGME_APU_LOGGER)\n");
-    return false;
-    #endif
 }
 
 int main(int argc, char *argv[])
@@ -115,7 +110,6 @@ int main(int argc, char *argv[])
     int track = argc >= 3 ? atoi(argv[2]) : 0;
     int record_time_sec = argc >= 4 ? atoi(argv[3]) : 10; /* Record time in seconds */
 
-    #ifdef GME_APU_LOGGER
     printf("APU Logger enabled - will record register writes\n");
     
     // Initialize APU logger using library function
@@ -131,10 +125,6 @@ int main(int argc, char *argv[])
         printf("Failed to initialize APU Logger\n");
         exit(1);
     }
-    #else
-    printf("APU Logger not compiled in (use -DGME_APU_LOGGER)\n");
-    Apu_Logger* logger = nullptr;
-    #endif
 
     /* Open music file in new emulator */
     Music_Emu* emu;
