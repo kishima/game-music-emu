@@ -18,16 +18,104 @@ extern "C" {
     void handle_error( const char* str );
 }
 
+void show_usage(const char* program_name) {
+    printf("Usage:\n");
+    printf("  %s <nsf_file> [track] [duration]     - Record APU log from NSF\n", program_name);
+    printf("  %s --parse <bin_file>                - Parse and display APU log\n", program_name);
+    printf("\nExamples:\n");
+    printf("  %s test.nsf 0 10                     - Record track 0 for 10 seconds\n", program_name);
+    printf("  %s --parse apu_log_track0.bin        - Parse and display log file\n", program_name);
+}
+
+bool parse_apu_log(const char* bin_filename) {
+    #ifdef GME_APU_LOGGER
+    printf("Parsing APU log file: %s\n", bin_filename);
+    
+    Apu_Logger logger;
+    if (!logger.load_binary(bin_filename)) {
+        printf("Error: Failed to load APU log file: %s\n", bin_filename);
+        return false;
+    }
+    
+    const auto& entries = logger.get_entries();
+    printf("\n=== APU Register Log Analysis ===\n");
+    printf("Total entries: %zu\n", entries.size());
+    
+    if (entries.empty()) {
+        printf("No entries found in log file.\n");
+        return true;
+    }
+    
+    // Display header
+    printf("\n%8s %8s %4s %s\n", "Entry#", "Time", "Addr", "Data");
+    printf("-------- -------- ---- ----\n");
+    
+    // Display all entries
+    for (size_t i = 0; i < entries.size(); i++) {
+        const auto& entry = entries[i];
+        printf("%8zu %8d %04X %02X\n", 
+               i + 1, entry.time, entry.addr, entry.data);
+    }
+    
+    // Statistics
+    if (entries.size() > 1) {
+        int32_t total_time = entries.back().time - entries.front().time;
+        double duration_sec = total_time / 1789773.0; // NTSC CPU frequency
+        printf("\n=== Statistics ===\n");
+        printf("Duration: %.3f seconds (%d CPU cycles)\n", duration_sec, total_time);
+        printf("Average writes per second: %.1f\n", entries.size() / duration_sec);
+        
+        // Register usage analysis
+        int reg_count[0x18] = {0}; // 0x4000-0x4017
+        for (const auto& entry : entries) {
+            if (entry.addr >= 0x4000 && entry.addr <= 0x4017) {
+                reg_count[entry.addr - 0x4000]++;
+            }
+        }
+        
+        printf("\n=== Register Usage ===\n");
+        const char* reg_names[] = {
+            "4000 Pulse1_Vol", "4001 Pulse1_Sweep", "4002 Pulse1_Lo", "4003 Pulse1_Hi",
+            "4004 Pulse2_Vol", "4005 Pulse2_Sweep", "4006 Pulse2_Lo", "4007 Pulse2_Hi", 
+            "4008 Tri_Linear", "4009 Reserved", "400A Tri_Lo", "400B Tri_Hi",
+            "400C Noise_Vol", "400D Reserved", "400E Noise_Lo", "400F Noise_Hi",
+            "4010 DMC_Freq", "4011 DMC_Raw", "4012 DMC_Start", "4013 DMC_Len",
+            "4014 OAM_DMA", "4015 Status", "4016 Joypad1", "4017 Joypad2"
+        };
+        
+        for (int i = 0; i < 0x18; i++) {
+            if (reg_count[i] > 0) {
+                printf("%s: %d writes\n", reg_names[i], reg_count[i]);
+            }
+        }
+    }
+    
+    return true;
+    #else
+    printf("Error: APU Logger not compiled in (use -DGME_APU_LOGGER)\n");
+    return false;
+    #endif
+}
+
 int main(int argc, char *argv[])
 {
-    const char *filename = "test.nsf"; /* Default file to open */
-    if ( argc >= 2 )
-        filename = argv[1];
-
+    if (argc < 2) {
+        show_usage(argv[0]);
+        return 1;
+    }
+    
+    // Check for parse mode
+    if (argc >= 3 && strcmp(argv[1], "--parse") == 0) {
+        return parse_apu_log(argv[2]) ? 0 : 1;
+    }
+    
+    // NSF recording mode
+    const char *filename = argv[1];
     int sample_rate = 44100;
     int track = argc >= 3 ? atoi(argv[2]) : 0;
     int record_time_sec = argc >= 4 ? atoi(argv[3]) : 10; /* Record time in seconds */
 
+    #ifdef GME_APU_LOGGER
     printf("APU Logger enabled - will record register writes\n");
     
     // Initialize APU logger using library function
@@ -43,6 +131,10 @@ int main(int argc, char *argv[])
         printf("Failed to initialize APU Logger\n");
         exit(1);
     }
+    #else
+    printf("APU Logger not compiled in (use -DGME_APU_LOGGER)\n");
+    Apu_Logger* logger = nullptr;
+    #endif
 
     /* Open music file in new emulator */
     Music_Emu* emu;
