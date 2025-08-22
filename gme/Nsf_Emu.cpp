@@ -16,6 +16,10 @@
 	#include "Nes_Vrc7_Apu.h"
 #endif
 
+#ifdef GME_APU_LOGGER
+	#include "Apu_Logger.h"
+#endif
+
 /* Copyright (C) 2003-2006 Shay Green. This module is free software; you
 can redistribute it and/or modify it under the terms of the GNU Lesser
 General Public License as published by the Free Software Foundation; either
@@ -607,6 +611,15 @@ blargg_err_t Nsf_Emu::start_track_( int track )
 	low_mem [0x1FF] = (badop_addr - 1) >> 8;
 	low_mem [0x1FE] = (badop_addr - 1) & 0xFF;
 	r.sp = 0xFD;
+	
+	#ifdef GME_APU_LOGGER
+	// Log INIT start
+	if (get_apu_logger() && get_apu_logger()->is_enabled()) {
+		get_apu_logger()->reset_frame_counter();
+		get_apu_logger()->log_init_start(time());
+	}
+	#endif
+	
 	r.pc = init_addr;
 	r.a  = track;
 	r.x  = pal_only;
@@ -633,6 +646,19 @@ blargg_err_t Nsf_Emu::run_clocks( blip_time_t& duration, int )
 				play_ready = 1;
 				if ( saved_state.pc != badop_addr )
 				{
+					#ifdef GME_APU_LOGGER
+					// Returning from INIT or PLAY - check which one
+					if (get_apu_logger() && get_apu_logger()->is_enabled()) {
+						if (get_apu_logger()->get_current_frame() == 0) {
+							// First return is from INIT
+							get_apu_logger()->log_init_end(time());
+						} else {
+							// Return from PLAY
+							get_apu_logger()->log_play_end(time(), get_apu_logger()->get_current_frame());
+						}
+					}
+					#endif
+					
 					cpu::r = saved_state;
 					saved_state.pc = badop_addr;
 				}
@@ -653,6 +679,18 @@ blargg_err_t Nsf_Emu::run_clocks( blip_time_t& duration, int )
 				check( saved_state.pc == badop_addr );
 				if ( r.pc != badop_addr )
 					saved_state = cpu::r;
+
+				#ifdef GME_APU_LOGGER
+				// Log PLAY start
+				if (get_apu_logger() && get_apu_logger()->is_enabled()) {
+					// If this is the first PLAY call (frame 0), log INIT end first
+					if (get_apu_logger()->get_current_frame() == 0) {
+						get_apu_logger()->log_init_end(time());
+					}
+					get_apu_logger()->increment_frame();
+					get_apu_logger()->log_play_start(time(), get_apu_logger()->get_current_frame());
+				}
+				#endif
 
 				r.pc = play_addr;
 				low_mem [0x100 + r.sp--] = (badop_addr - 1) >> 8;

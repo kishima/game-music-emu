@@ -12,15 +12,26 @@
 typedef int32_t nes_time_t;
 typedef unsigned nes_addr_t;
 
+// APU event types for INIT/PLAY tracking
+enum apu_log_event_type {
+    APU_EVENT_WRITE = 0,     // Normal APU register write
+    APU_EVENT_INIT_START,    // INIT routine started
+    APU_EVENT_INIT_END,      // INIT routine completed
+    APU_EVENT_PLAY_START,    // PLAY routine started
+    APU_EVENT_PLAY_END       // PLAY routine completed
+};
+
 // APU register write event
 struct apu_log_entry_t {
-    nes_time_t time;    // CPU cycle time when write occurred
-    uint16_t addr;      // Register address (0x4000-0x4017)
-    uint8_t data;       // Data written to register
+    nes_time_t time;         // CPU cycle time when write occurred
+    uint16_t addr;           // Register address (0x4000-0x4017) or event marker
+    uint8_t data;            // Data written to register
+    uint8_t event_type;      // Event type (apu_log_event_type)
+    uint32_t frame_number;   // Frame number for PLAY events
     
-    apu_log_entry_t() : time(0), addr(0), data(0) {}
-    apu_log_entry_t(nes_time_t t, uint16_t a, uint8_t d) 
-        : time(t), addr(a), data(d) {}
+    apu_log_entry_t() : time(0), addr(0), data(0), event_type(APU_EVENT_WRITE), frame_number(0) {}
+    apu_log_entry_t(nes_time_t t, uint16_t a, uint8_t d, uint8_t et = APU_EVENT_WRITE, uint32_t fn = 0) 
+        : time(t), addr(a), data(d), event_type(et), frame_number(fn) {}
 };
 
 // APU Logger class
@@ -35,6 +46,12 @@ public:
     
     // Log an APU register write
     void log_write(nes_time_t time, nes_addr_t addr, int data);
+    
+    // Log INIT/PLAY events
+    void log_init_start(nes_time_t time);
+    void log_init_end(nes_time_t time);
+    void log_play_start(nes_time_t time, uint32_t frame);
+    void log_play_end(nes_time_t time, uint32_t frame);
     
     // Clear all logged entries
     void clear();
@@ -63,12 +80,19 @@ public:
     // Set time base for relative timing
     void set_time_base(nes_time_t base_time) { time_base_ = base_time; }
     void reset_time_base() { time_base_ = 0; }
+    
+    // Get current frame number
+    uint32_t get_current_frame() const { return current_frame_; }
+    void increment_frame() { current_frame_++; }
+    void reset_frame_counter() { current_frame_ = 0; }
 
 private:
     bool enabled_;
     std::vector<apu_log_entry_t> entries_;
     size_t max_entries_;    // 0 = unlimited
     nes_time_t time_base_;  // For relative timing
+    uint32_t current_frame_; // Current frame number
+    nes_time_t frame_start_time_; // Start time of current frame
     
     // Helper function to check if address is valid APU register
     bool is_apu_addr(nes_addr_t addr) const;
@@ -99,9 +123,10 @@ inline void apu_log_write(nes_time_t time, nes_addr_t addr, int data) {
 // Binary file format header
 struct apu_log_header_t {
     char magic[8];          // "APULOG\0\0"
-    uint32_t version;       // File format version
+    uint32_t version;       // File format version (2 for INIT/PLAY support)
     uint32_t entry_count;   // Number of log entries
-    uint32_t reserved[4];   // For future use
+    uint32_t frame_count;   // Total number of frames
+    uint32_t reserved[3];   // For future use
 };
 
 // C interface functions (declared here for both C and C++ compilation)

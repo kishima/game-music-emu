@@ -39,21 +39,52 @@ bool parse_apu_log(const char* bin_filename) {
     const auto& entries = logger.get_entries();
     printf("\n=== APU Register Log Analysis ===\n");
     printf("Total entries: %zu\n", entries.size());
+    printf("Format version: %d\n", logger.get_entries().empty() ? 0 : 
+           (logger.get_entries()[0].event_type == APU_EVENT_WRITE ? 1 : 2));
     
     if (entries.empty()) {
         printf("No entries found in log file.\n");
         return true;
     }
     
-    // Display header
-    printf("\n%8s %8s %4s %s\n", "Entry#", "Time", "Addr", "Data");
-    printf("-------- -------- ---- ----\n");
+    // Display entries with INIT/PLAY formatting
+    bool in_init = false;
+    bool in_play = false;
+    uint32_t current_frame = 0;
     
-    // Display all entries
     for (size_t i = 0; i < entries.size(); i++) {
         const auto& entry = entries[i];
-        printf("%8zu %8d %04X %02X\n", 
-               i + 1, entry.time, entry.addr, entry.data);
+        
+        switch (entry.event_type) {
+            case APU_EVENT_INIT_START:
+                printf("\n=== INIT START (Time %d) ===\n", entry.time);
+                in_init = true;
+                break;
+                
+            case APU_EVENT_INIT_END:
+                printf("=== INIT END (Time %d) ===\n", entry.time);
+                in_init = false;
+                break;
+                
+            case APU_EVENT_PLAY_START:
+                printf("\n=== PLAY START (Frame %u, Time %d) ===\n", entry.frame_number, entry.time);
+                in_play = true;
+                current_frame = entry.frame_number;
+                break;
+                
+            case APU_EVENT_PLAY_END:
+                printf("=== PLAY END (Frame %u, Time %d) ===\n", entry.frame_number, entry.time);
+                in_play = false;
+                break;
+                
+            case APU_EVENT_WRITE:
+            default:
+                printf("%8zu %8d 0x%04X 0x%02X", i + 1, entry.time, entry.addr, entry.data);
+                if (in_init) printf(" [INIT]");
+                else if (in_play) printf(" [PLAY Frame %u]", current_frame);
+                printf("\n");
+                break;
+        }
     }
     
     // Statistics
@@ -64,10 +95,24 @@ bool parse_apu_log(const char* bin_filename) {
         printf("Duration: %.3f seconds (%d CPU cycles)\n", duration_sec, total_time);
         printf("Average writes per second: %.1f\n", entries.size() / duration_sec);
         
+        // Count frames
+        uint32_t max_frame = 0;
+        for (const auto& entry : entries) {
+            if (entry.frame_number > max_frame) {
+                max_frame = entry.frame_number;
+            }
+        }
+        if (max_frame > 0) {
+            printf("Total frames: %u\n", max_frame);
+            printf("Average APU writes per frame: %.1f\n", 
+                   (double)entries.size() / max_frame);
+        }
+        
         // Register usage analysis
         int reg_count[0x18] = {0}; // 0x4000-0x4017
         for (const auto& entry : entries) {
-            if (entry.addr >= 0x4000 && entry.addr <= 0x4017) {
+            if (entry.event_type == APU_EVENT_WRITE && 
+                entry.addr >= 0x4000 && entry.addr <= 0x4017) {
                 reg_count[entry.addr - 0x4000]++;
             }
         }
@@ -240,11 +285,30 @@ void example_playback_from_log(const char* log_filename) {
     const auto& entries = logger.get_entries();
     printf("Loaded %zu APU register writes\n", entries.size());
     
-    // Example: Print first 10 entries
-    printf("First 10 entries:\n");
-    for (size_t i = 0; i < std::min(entries.size(), size_t(10)); i++) {
-        printf("  Time: %8d, Addr: 0x%04X, Data: 0x%02X\n",
-               entries[i].time, entries[i].addr, entries[i].data);
+    // Example: Print first few entries
+    printf("Sample entries:\n");
+    size_t count = 0;
+    for (size_t i = 0; i < entries.size() && count < 10; i++) {
+        const auto& entry = entries[i];
+        switch (entry.event_type) {
+            case APU_EVENT_INIT_START:
+                printf("  [INIT START] Frame %u, Time: %d\n", entry.frame_number, entry.time);
+                break;
+            case APU_EVENT_INIT_END:
+                printf("  [INIT END] Time: %d\n", entry.time);
+                break;
+            case APU_EVENT_PLAY_START:
+                printf("  [PLAY START] Frame %u, Time: %d\n", entry.frame_number, entry.time);
+                break;
+            case APU_EVENT_PLAY_END:
+                printf("  [PLAY END] Frame %u, Time: %d\n", entry.frame_number, entry.time);
+                break;
+            case APU_EVENT_WRITE:
+                printf("  [WRITE] Time: %8d, Addr: 0x%04X, Data: 0x%02X\n",
+                       entry.time, entry.addr, entry.data);
+                count++;
+                break;
+        }
     }
     
     // In a real implementation, you would:

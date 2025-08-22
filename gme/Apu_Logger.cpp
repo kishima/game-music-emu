@@ -24,6 +24,8 @@ Apu_Logger::Apu_Logger()
     : enabled_(false)
     , max_entries_(0)
     , time_base_(0)
+    , current_frame_(0)
+    , frame_start_time_(0)
 {
     entries_.reserve(10000); // Reserve space for typical usage
 }
@@ -50,16 +52,61 @@ void Apu_Logger::log_write(nes_time_t time, nes_addr_t addr, int data) {
         return; // Could implement circular buffer here if needed
     }
     
-    // Convert to relative time if time base is set
-    nes_time_t relative_time = time - time_base_;
+    // Calculate relative time from frame start
+    nes_time_t relative_time = time - frame_start_time_;
+    
+    // Handle wraparound if time goes negative (32-bit overflow)
+    if (relative_time < 0) {
+        // Assume 32-bit wraparound occurred
+        relative_time = (time + (1LL << 32)) - frame_start_time_;
+    }
     
     // Add entry
-    entries_.emplace_back(relative_time, static_cast<uint16_t>(addr), static_cast<uint8_t>(data));
+    entries_.emplace_back(relative_time, static_cast<uint16_t>(addr), static_cast<uint8_t>(data), APU_EVENT_WRITE, current_frame_);
+}
+
+void Apu_Logger::log_init_start(nes_time_t time) {
+    if (!enabled_) return;
+    
+    frame_start_time_ = time; // INIT is the first frame
+    nes_time_t relative_time = 0; // Always 0 for frame start
+    entries_.emplace_back(relative_time, 0xFFFF, 0x00, APU_EVENT_INIT_START, current_frame_);
+}
+
+void Apu_Logger::log_init_end(nes_time_t time) {
+    if (!enabled_) return;
+    
+    nes_time_t relative_time = time - frame_start_time_;
+    entries_.emplace_back(relative_time, 0xFFFF, 0x00, APU_EVENT_INIT_END, current_frame_);
+}
+
+void Apu_Logger::log_play_start(nes_time_t time, uint32_t frame) {
+    if (!enabled_) return;
+    
+    frame_start_time_ = time; // Update frame start time
+    current_frame_ = frame;
+    nes_time_t relative_time = 0; // Always 0 for frame start
+    entries_.emplace_back(relative_time, 0xFFFF, 0x00, APU_EVENT_PLAY_START, current_frame_);
+}
+
+void Apu_Logger::log_play_end(nes_time_t time, uint32_t frame) {
+    if (!enabled_) return;
+    
+    nes_time_t relative_time = time - frame_start_time_;
+    
+    // Handle wraparound
+    if (relative_time < 0) {
+        relative_time = (time + (1LL << 32)) - frame_start_time_;
+    }
+    
+    entries_.emplace_back(relative_time, 0xFFFF, 0x00, APU_EVENT_PLAY_END, frame);
 }
 
 void Apu_Logger::clear() {
     entries_.clear();
     time_base_ = 0;
+    current_frame_ = 0;
+    frame_start_time_ = 0;
 }
 
 size_t Apu_Logger::get_memory_usage() const {
@@ -81,8 +128,9 @@ bool Apu_Logger::save_binary(const char* filename) const {
     apu_log_header_t header;
     memset(&header, 0, sizeof(header));
     strcpy(header.magic, "APULOG");
-    header.version = 1;
+    header.version = 2;  // Version 2 supports INIT/PLAY events
     header.entry_count = static_cast<uint32_t>(entries_.size());
+    header.frame_count = current_frame_;
     
     if (fwrite(&header, sizeof(header), 1, file) != 1) {
         fclose(file);
@@ -106,14 +154,30 @@ bool Apu_Logger::save_text(const char* filename) const {
         return false;
     }
     
-    fprintf(file, "# APU Register Log\n");
-    fprintf(file, "# Format: Time(cycles) Address Data\n");
+    fprintf(file, "# APU Register Log (INIT/PLAY Format)\n");
     fprintf(file, "# Total entries: %zu\n", entries_.size());
+    fprintf(file, "# Total frames: %u\n", current_frame_);
     fprintf(file, "\n");
     
     for (const auto& entry : entries_) {
-        fprintf(file, "%10d 0x%04X 0x%02X\n", 
-                entry.time, entry.addr, entry.data);
+        switch (entry.event_type) {
+            case APU_EVENT_INIT_START:
+                fprintf(file, "\n=== INIT START (Frame %u, Time %d) ===\n", entry.frame_number, entry.time);
+                break;
+            case APU_EVENT_INIT_END:
+                fprintf(file, "=== INIT END (Time %d) ===\n\n", entry.time);
+                break;
+            case APU_EVENT_PLAY_START:
+                fprintf(file, "\n=== PLAY START (Frame %u, Time %d) ===\n", entry.frame_number, entry.time);
+                break;
+            case APU_EVENT_PLAY_END:
+                fprintf(file, "=== PLAY END (Time %d) ===\n\n", entry.time);
+                break;
+            case APU_EVENT_WRITE:
+            default:
+                fprintf(file, "%10d 0x%04X 0x%02X\n", entry.time, entry.addr, entry.data);
+                break;
+        }
     }
     
     fclose(file);
@@ -144,9 +208,14 @@ bool Apu_Logger::load_binary(const char* filename) {
     }
     
     // Check version
-    if (header.version != 1) {
+    if (header.version != 1 && header.version != 2) {
         fclose(file);
         return false; // Unsupported version
+    }
+    
+    // Set frame count for version 2
+    if (header.version == 2) {
+        current_frame_ = header.frame_count;
     }
     
     // Read entries
