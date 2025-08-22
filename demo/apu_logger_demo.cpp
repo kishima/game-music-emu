@@ -41,6 +41,7 @@ bool parse_apu_log(const char* bin_filename) {
     printf("Total entries: %zu\n", entries.size());
     printf("Format version: %d\n", logger.get_entries().empty() ? 0 : 
            (logger.get_entries()[0].event_type == APU_EVENT_WRITE ? 1 : 2));
+    printf("Total frames: %u\n", logger.get_current_frame());
     
     if (entries.empty()) {
         printf("No entries found in log file.\n");
@@ -89,21 +90,26 @@ bool parse_apu_log(const char* bin_filename) {
     
     // Statistics
     if (entries.size() > 1) {
-        int32_t total_time = entries.back().time - entries.front().time;
-        double duration_sec = total_time / 1789773.0; // NTSC CPU frequency
-        printf("\n=== Statistics ===\n");
-        printf("Duration: %.3f seconds (%d CPU cycles)\n", duration_sec, total_time);
-        printf("Average writes per second: %.1f\n", entries.size() / duration_sec);
-        
-        // Count frames
+        // Calculate total duration from frame count (60Hz NTSC)
         uint32_t max_frame = 0;
+        int32_t max_time_in_frame = 0;
+        
         for (const auto& entry : entries) {
             if (entry.frame_number > max_frame) {
                 max_frame = entry.frame_number;
             }
+            if (entry.event_type == APU_EVENT_WRITE && entry.time > max_time_in_frame) {
+                max_time_in_frame = entry.time;
+            }
         }
+        
+        double duration_sec = max_frame / 60.0; // 60Hz NTSC
+        printf("\n=== Statistics ===\n");
+        printf("Duration: %.3f seconds (%u frames @ 60Hz)\n", duration_sec, max_frame);
+        printf("Max time in frame: %d CPU cycles\n", max_time_in_frame);
+        printf("Average writes per second: %.1f\n", entries.size() / duration_sec);
+        
         if (max_frame > 0) {
-            printf("Total frames: %u\n", max_frame);
             printf("Average APU writes per frame: %.1f\n", 
                    (double)entries.size() / max_frame);
         }
