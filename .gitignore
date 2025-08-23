@@ -20,3 +20,7 @@ test/newm/*
 .DS_Store
 Thumbs.db
 desktop.ini
+
+apu_bin_parser/apu_bin_parser
+apu_bin_parser/apu_bin_parser.o
+
