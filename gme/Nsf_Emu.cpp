@@ -630,6 +630,12 @@ blargg_err_t Nsf_Emu::start_track_( int track )
 blargg_err_t Nsf_Emu::run_clocks( blip_time_t& duration, int )
 {
 	set_time( 0 );
+	#ifdef GME_APU_LOGGER
+	// Reset APU logger frame start time when CPU time is reset
+	if (get_apu_logger() && get_apu_logger()->is_enabled()) {
+		get_apu_logger()->reset_frame_start_time();
+	}
+	#endif
 	while ( time() < duration )
 	{
 		nes_time_t end = min( (blip_time_t) next_play, duration );

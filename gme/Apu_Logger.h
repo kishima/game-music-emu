@@ -81,6 +81,9 @@ public:
     void set_time_base(nes_time_t base_time) { time_base_ = base_time; }
     void reset_time_base() { time_base_ = 0; }
     
+    // Reset frame start time when CPU time is reset
+    void reset_frame_start_time() { frame_start_time_ = 0; }
+    
     // Get current frame number
     uint32_t get_current_frame() const { return current_frame_; }
     void increment_frame() { current_frame_++; }

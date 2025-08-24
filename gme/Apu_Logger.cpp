@@ -55,10 +55,9 @@ void Apu_Logger::log_write(nes_time_t time, nes_addr_t addr, int data) {
     // Calculate relative time from frame start
     nes_time_t relative_time = time - frame_start_time_;
     
-    // Handle wraparound if time goes negative (32-bit overflow)
+    // If negative, clamp to 0 (this can happen at buffer boundaries)
     if (relative_time < 0) {
-        // Assume 32-bit wraparound occurred
-        relative_time = (time + (1LL << 32)) - frame_start_time_;
+        relative_time = 0;
     }
     
     // Add entry
